@@ -6,6 +6,7 @@ import scala.util.{Failure, Success}
   *
   * See also: https://blog.hablapps.com/?s=monad
   */
+//noinspection TypeAnnotation, LanguageFeature
 object ObjectAlgebraMonad extends App {
 
 
@@ -60,24 +61,43 @@ object ObjectAlgebraMonad extends App {
   import IO.Syntax._, Monad.Syntax._
   // N E E D E D :  Monad.Syntax._
 
-  /*
-    def loggedCalculation[P[_] : IO : Monad]: P[String] =
-      read() flatMap { input =>
-        log(input) flatMap { _ =>
-          returns(input)
-        }
-      }*/
-
   /**
     * Using for-comprehensions, we are now able to log our program with the
     * look-and-feel of a conventional imperative program.
     */
   def loggedCalculation[P[_] : IO : Monad](): P[String] = {
-    for {
+    val result = for {
       input <- read()
       _ <- log(input)
       result <- calculate(input)
     } yield result
+
+    result
+
+    /*
+        import scala.reflect.runtime.universe._
+
+        println(show {
+          reify {
+            for {
+              input <- read()
+              _ <- log(input)
+              result <- calculate(input)
+            } yield result
+          }
+        })
+
+        result
+    */
+
+    /*
+    This is the result of reify:
+
+        Expr[P[String]](Monad.Syntax.FlatMapOps(IO.Syntax.read()).flatMap(
+          ((input) => Monad.Syntax.FlatMapOps(IO.Syntax.log(input)).flatMap(
+            ((_) => Monad.Syntax.FlatMapOps(IO.Syntax.calculate(input)).map(
+              ((result) => result)))))))
+    */
   }
 
   // https://docs.google.com/presentation/d/1lbRuaIun8IOpw0hM52Amj6N-V25Uu52udRoYx2RBWJc/edit#slide=id.g17ca778fd0_0_1091
@@ -100,18 +120,23 @@ object ObjectAlgebraMonad extends App {
 
   implicit object OptionIO extends IO[Option] {
     override def read(): Option[String] =
-      Some("2 days ago")
+      Some("getListOfPrimesTo 1000")
 
     override def log(input: String): Option[Unit] =
       Some {
-        println(s"OptionIO log: DayDslApp will calculate: $input")
+        println(s"OptionIO log: We will calculate: $input")
       }
 
     def calculate(sentence: String): Option[String] = {
-      import DayDslApp._
-      Some(String.valueOf(
-        2 days ago
-      ))
+      val n = sentence.split("To ")(1).toInt
+
+      // https://stackoverflow.com/questions/26287604/get-list-of-primes-to-n
+
+      lazy val ps: Stream[Int] = 2 #:: Stream.from(3)
+        .filter(x => ps.takeWhile(p => p * p <= x).forall(x % _ != 0))
+
+      val last10 = ps.takeWhile(_ <= n).toList.takeRight(10)
+      Some(last10.toString)
     }
   }
 
